@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charni · Zona CABA</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+button,a{outline:none;-webkit-tap-highlight-color:transparent}
+button:focus,a:focus{outline:none}
+:root{
+  --bg:#F7F5F0;--bg2:#EDEAE2;--bg3:#FFFFFF;--bg4:#F0EDE5;
+  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --text:#18170E;--text2:#706D62;--text3:#A8A49A;
+  --c1:#1D6AF5;--c1l:#E8F0FE;--c1d:#1251B8;
+  --c2:#0D9E6E;--c2l:#DCFDF0;--c2d:#065F46;
+  --c3:#E07B00;--c3l:#FEF3DC;--c3d:#92400E;
+  --c4:#6D28D9;--c4l:#EDE9FE;--c4d:#4C1D95;
+  --cx:#8A8880;--cxl:#F3F2EE;
+  --green:#0D9E6E;--red:#E53E3E;--gold:#D97706;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --topbar:56px;--bottombar:64px;
+  --radius:14px;--radius-sm:9px;
+  --shadow:0 2px 16px rgba(0,0,0,0.09);
+  --shadow-lg:0 8px 40px rgba(0,0,0,0.14);
+}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--bg);color:var(--text)}
+
+/* ── TOPBAR ── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar);z-index:1000;
+  background:var(--bg3);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+  box-shadow:0 1px 8px rgba(0,0,0,0.06);
+}
+.brand-logo{width:34px;height:34px;background:var(--text);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:800;color:#fff;font-family:var(--mono)}
+.brand-text{flex:1;min-width:0}
+.brand-name{font-size:14px;font-weight:800;letter-spacing:-0.02em}
+.brand-zone{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:0.03em}
+.top-pills{display:flex;gap:5px;flex-shrink:0}
+.top-pill{display:flex;align-items:center;gap:3px;background:var(--bg4);border-radius:20px;padding:4px 9px;font-size:10px;font-weight:600;color:var(--text2);font-family:var(--mono)}
+.top-pill-num{color:var(--text);font-size:12px;font-weight:700}
+.gps-btn{width:34px;height:34px;border-radius:50%;background:var(--bg4);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;transition:all 0.2s}
+.gps-btn.active{background:#E8F5E9;border-color:#4CAF50}
+.gps-btn.searching{background:#FFF8E1;border-color:#FFC107;animation:spin 1.5s linear infinite}
+/* Botón help/tutorial */
+.help-btn{width:34px;height:34px;border-radius:50%;background:var(--bg4);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;font-weight:800;color:var(--text2);transition:all 0.2s}
+.help-btn:active{background:var(--bg2)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── BOTTOM TABS ── */
+.bottombar{
+  position:fixed;bottom:0;left:0;right:0;height:var(--bottombar);z-index:1000;
+  background:var(--bg3);border-top:1px solid var(--border);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 12px rgba(0,0,0,0.06);
+}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;border:none;background:none;font-family:var(--sans);font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.02em;padding-bottom:4px;transition:color 0.15s;position:relative}
+.tab-btn.active{color:var(--c1)}
+.tab-btn.active::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--c1);border-radius:0 0 2px 2px}
+.tab-icon{font-size:20px;line-height:1}
+
+/* ── VIEWS ── */
+.view{position:fixed;top:var(--topbar);left:0;right:0;bottom:var(--bottombar);overflow:hidden;display:none}
+.view.active{display:block}
+
+/* ── MAPA LEAFLET ── */
+#view-mapa{z-index:1}
+#leaflet-map{width:100%;height:100%}
+
+.leaflet-control-zoom{border:none!important;box-shadow:var(--shadow)!important}
+.leaflet-control-zoom a{background:var(--bg3)!important;color:var(--text)!important;border:1px solid var(--border)!important;font-weight:700!important;border-radius:8px!important;margin-bottom:4px!important}
+.leaflet-control-zoom a:hover{background:var(--bg4)!important}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(255,255,255,0.7)!important}
+
+.pin-marker{width:32px;height:40px;position:relative;cursor:pointer;}
+
+/* Popup Leaflet custom */
+.leaflet-popup-content-wrapper{
+  border-radius:12px!important;padding:0!important;overflow:hidden;
+  box-shadow:var(--shadow-lg)!important;border:1px solid var(--border)!important;
+}
+.leaflet-popup-content{margin:0!important;width:220px!important}
+.leaflet-popup-tip{display:none}
+.popup-inner{padding:12px 14px}
+.popup-name{font-size:13px;font-weight:800;color:var(--text);line-height:1.3;font-family:var(--sans)}
+.popup-tipo{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--sans)}
+.popup-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.popup-chip{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+.popup-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg4)}
+.popup-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 6px;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--sans);border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;text-decoration:none;transition:all 0.15s}
+.popup-btn:active{transform:scale(0.96)}
+.popup-btn.primary{background:var(--c1);border-color:var(--c1);color:#fff;grid-column:span 2}
+.popup-btn.start-here{background:#E8F5E9;border-color:#86EFAC;color:#15803D;grid-column:span 2;margin-top:0}
+
+/* ── LISTA ── */
+#view-lista{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+#view-lista::-webkit-scrollbar{display:none}
+.search-bar{position:sticky;top:0;z-index:10;background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)}
+.search-inner{display:flex;align-items:center;gap:8px;background:var(--bg4);border:1.5px solid transparent;border-radius:12px;padding:9px 12px;transition:all 0.15s}
+.search-inner:focus-within{background:#fff;border-color:var(--c1)}
+.search-inner input{flex:1;border:none;background:none;font-size:14px;font-family:var(--sans);color:var(--text);outline:none}
+.search-inner input::placeholder{color:var(--text3)}
+.search-icon{font-size:16px;color:var(--text3)}
+.cuad-label-row{display:flex;align-items:center;gap:8px;padding:12px 16px 6px;position:sticky;top:57px;background:var(--bg);z-index:5}
+.cuad-pip{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.cuad-name-t{font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;flex:1}
+.cuad-n{font-size:10px;font-family:var(--mono);color:var(--text3)}
+.client-card{margin:0 12px 6px;border-radius:var(--radius);background:var(--bg3);border:1.5px solid var(--border);padding:12px 14px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:all 0.15s;animation:slideUp 0.2s ease both}
+.client-card:active{transform:scale(0.98)}
+.client-card.sel{border-color:var(--c1);background:#FAFCFF;box-shadow:0 0 0 3px rgba(29,106,245,0.08)}
+.client-card.no-visitar{opacity:0.45;border-style:dashed}
+.c-av{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+.c-body{flex:1;min-width:0}
+.c-name{font-size:13px;font-weight:700;line-height:1.3;color:var(--text)}
+.c-tipo{font-size:11px;color:var(--text3);margin-top:1px}
+.c-chips{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px}
+.chip{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px}
+.chip-b{background:#FEF9C3;color:#713F12;border:1px solid #FDE047}
+.chip-c{background:var(--c2l);color:var(--c2d);border:1px solid #6EE7B7}
+.chip-s{background:var(--c4l);color:var(--c4d);border:1px solid #C4B5FD}
+.chip-e{background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5}
+.chip-w{background:#FFF7ED;color:#92400E;border:1px solid #FCD34D}
+.chip-a{background:var(--cxl);color:var(--cx);border:1px solid #D1D5DB}
+.chip-nv{background:#F3F4F6;color:#6B7280;border:1px solid #D1D5DB}
+.chip-da{background:#FEF3DC;color:#92400E;border:1px solid #FCD34D}
+.c-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;padding-top:1px}
+.status-ring{width:10px;height:10px;border-radius:50%}
+.c-wa-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--c2l);font-size:14px;text-decoration:none;transition:all 0.15s}
+@keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PANEL ── */
+#view-panel{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+#view-panel::-webkit-scrollbar{display:none}
+.panel-header{position:sticky;top:0;z-index:10;background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:10px}
+.back-btn{width:36px;height:36px;border-radius:10px;background:var(--bg4);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.back-btn:active{background:var(--bg2)}
+.panel-title-wrap{flex:1;min-width:0}
+.panel-client-name{font-size:14px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-cuad-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;font-family:var(--mono);letter-spacing:0.04em;margin-top:2px;display:inline-block}
+.panel-body{padding:12px 14px}
+.alert-box{padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:10px;font-weight:500;border-width:1.5px;border-style:solid}
+.alert-amber{background:#FFF7ED;color:#92400E;border-color:#FCD34D}
+.alert-blue{background:#EFF6FF;color:#1E40AF;border-color:#BFDBFE}
+.alert-red{background:#FEF2F2;color:#991B1B;border-color:#FCA5A5}
+
+/* Maps buttons */
+.maps-row{display:flex;gap:6px;margin-bottom:10px}
+.maps-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:var(--radius-sm);text-decoration:none;border:1.5px solid var(--border2);background:var(--bg3);transition:all 0.15s;cursor:pointer}
+.maps-btn:active{transform:scale(0.96);background:var(--bg4)}
+.maps-btn-icon{font-size:20px;line-height:1}
+.maps-btn-label{font-size:10px;font-weight:700;color:var(--text2);text-align:center;line-height:1.2}
+.maps-btn.disabled{opacity:0.35;pointer-events:none}
+.route-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:var(--radius-sm);background:var(--c1);color:#fff;border:none;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;transition:all 0.15s;margin-bottom:6px;letter-spacing:-0.01em}
+.route-btn:active{opacity:0.85;transform:scale(0.98)}
+.start-route-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:var(--radius-sm);background:#E8F5E9;color:#15803D;border:1.5px solid #86EFAC;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;margin-bottom:10px;letter-spacing:-0.01em}
+.start-route-btn:active{opacity:0.85;transform:scale(0.98)}
+
+/* Secciones form */
+.section-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.section-title{font-size:10px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{font-size:12px;padding:7px 13px;border-radius:20px;border:1.5px solid var(--border2);cursor:pointer;background:var(--bg4);color:var(--text2);font-family:var(--sans);font-weight:600;transition:all 0.12s;user-select:none}
+.pill:active{transform:scale(0.95)}
+.pill.sg{background:var(--c2l);border-color:var(--green);color:var(--c2d);font-weight:700}
+.pill.sa{background:#FFF7ED;border-color:var(--gold);color:var(--gold);font-weight:700}
+.pill.sr{background:#FEE2E2;border-color:var(--red);color:var(--red);font-weight:700}
+.pill.sp{background:#F3E8FF;border-color:#A855F7;color:#7C3AED;font-weight:700}
+.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.brand-btn{display:flex;align-items:center;gap:7px;font-size:12px;padding:9px 10px;border-radius:9px;border:1.5px solid var(--border);cursor:pointer;background:var(--bg4);color:var(--text2);font-family:var(--sans);font-weight:600;transition:all 0.12s;user-select:none}
+.brand-btn:active{transform:scale(0.97)}
+.brand-btn.on{background:var(--c1l);border-color:var(--c1);color:var(--c1d);font-weight:700}
+.bchk{width:15px;height:15px;border-radius:4px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.brand-btn.on .bchk{background:var(--c1);color:#fff;border-color:var(--c1)}
+.size-row{display:flex;gap:6px}
+.sz-btn{flex:1;padding:9px 4px;font-size:12px;font-weight:700;border:1.5px solid var(--border);border-radius:9px;cursor:pointer;background:var(--bg4);color:var(--text2);text-align:center;font-family:var(--sans);transition:all 0.12s}
+.sz-btn:active{transform:scale(0.97)}
+.sz-btn.on{background:var(--text);color:#fff;border-color:var(--text)}
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#DCFCE7;border:1.5px solid #86EFAC;border-radius:10px;color:#15803D;font-size:14px;font-weight:700;text-decoration:none;transition:all 0.15s}
+.wa-btn:active{background:#BBF7D0}
+.no-wa{text-align:center;padding:11px;font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--bg4);border-radius:10px}
+.notes-ta{width:100%;background:var(--bg4);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;font-size:13px;font-family:var(--sans);color:var(--text);resize:none;height:72px;outline:none;line-height:1.5}
+.notes-ta:focus{border-color:var(--c1);background:#fff}
+.notes-ta::placeholder{color:var(--text3)}
+.save-btn{width:100%;padding:15px;background:var(--text);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;font-family:var(--sans);cursor:pointer;letter-spacing:-0.01em;transition:all 0.15s;margin-top:4px}
+.save-btn:active{opacity:0.85;transform:scale(0.98)}
+/* Botón no visitar */
+.no-visit-btn{width:100%;padding:11px;background:var(--bg4);color:var(--text3);border:1.5px dashed var(--border2);border-radius:10px;font-size:12px;font-weight:700;font-family:var(--sans);cursor:pointer;transition:all 0.15s;margin-top:6px;margin-bottom:4px}
+.no-visit-btn.active{background:#F3F4F6;color:#6B7280;border-color:#9CA3AF}
+
+/* Historial */
+.historial-item{padding:8px 10px;border-radius:8px;background:var(--bg4);margin-bottom:5px;font-size:11px;color:var(--text2);line-height:1.5;border-left:3px solid var(--border2)}
+.historial-time{font-family:var(--mono);font-size:9px;color:var(--text3);display:block;margin-bottom:2px}
+.historial-empty{font-size:11px;color:var(--text3);text-align:center;font-family:var(--mono);padding:8px}
+
+/* ── EXPORTAR VIEW ── */
+#view-exportar{background:var(--bg);overflow-y:auto;padding:14px}
+#view-exportar::-webkit-scrollbar{display:none}
+.export-title{font-size:18px;font-weight:800;letter-spacing:-0.02em;margin-bottom:4px}
+.export-sub{font-size:12px;color:var(--text3);margin-bottom:20px;font-family:var(--mono)}
+.export-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.export-card h3{font-size:13px;font-weight:800;margin-bottom:4px}
+.export-card p{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6}
+.export-btn{width:100%;padding:13px;border-radius:10px;font-size:14px;font-weight:700;font-family:var(--sans);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s;letter-spacing:-0.01em}
+.export-btn:active{transform:scale(0.98)}
+.export-btn.green{background:#DCFCE7;color:#15803D}
+.export-btn.blue{background:var(--c1l);color:var(--c1d)}
+.export-btn.wa{background:#25D366;color:#fff}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.stat-box{background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.stat-box-num{font-size:24px;font-weight:800;font-family:var(--mono);line-height:1;color:var(--text)}
+.stat-box-lbl{font-size:10px;color:var(--text3);margin-top:3px;font-weight:600}
+
+/* Sección Recursos */
+.recurso-link{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;background:var(--bg4);border:1.5px solid var(--border);text-decoration:none;color:var(--text);margin-bottom:7px;transition:all 0.15s}
+.recurso-link:active{background:var(--bg2)}
+.recurso-icon{font-size:20px;flex-shrink:0}
+.recurso-body{flex:1;min-width:0}
+.recurso-name{font-size:13px;font-weight:700}
+.recurso-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.recurso-arrow{font-size:14px;color:var(--text3)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:calc(var(--bottombar)+16px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:#fff;font-size:13px;font-weight:700;padding:11px 22px;border-radius:30px;font-family:var(--sans);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-lg);letter-spacing:-0.01em}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── TUTORIAL OVERLAY ── */
+.tutorial-overlay{
+  position:fixed;inset:0;z-index:9000;
+  background:rgba(0,0,0,0.75);
+  display:flex;align-items:flex-end;
+  animation:fadeIn 0.3s ease;
+}
+.tutorial-overlay.hidden{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.tutorial-card{
+  background:var(--bg3);border-radius:24px 24px 0 0;
+  padding:24px 20px 32px;width:100%;
+  animation:slideUpModal 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes slideUpModal{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.tutorial-step-dots{display:flex;gap:6px;justify-content:center;margin-bottom:20px}
+.tutorial-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:all 0.2s}
+.tutorial-dot.active{background:var(--c1);width:22px;border-radius:4px}
+.tutorial-emoji{font-size:48px;text-align:center;margin-bottom:12px}
+.tutorial-title{font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;letter-spacing:-0.02em}
+.tutorial-text{font-size:14px;color:var(--text2);text-align:center;line-height:1.7;margin-bottom:24px}
+.tutorial-btns{display:flex;gap:10px}
+.tutorial-skip{flex:1;padding:13px;background:var(--bg4);border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--sans);color:var(--text2);cursor:pointer}
+.tutorial-next{flex:2;padding:13px;background:var(--c1);border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--sans);color:#fff;cursor:pointer}
+
+/* ── ENCUESTA MODAL ── */
+.encuesta-overlay{
+  position:fixed;inset:0;z-index:8500;
+  background:rgba(0,0,0,0.65);
+  display:flex;align-items:flex-end;
+}
+.encuesta-overlay.hidden{display:none}
+.encuesta-card{
+  background:var(--bg3);border-radius:24px 24px 0 0;
+  padding:20px 20px 32px;width:100%;
+  max-height:90vh;overflow-y:auto;
+  animation:slideUpModal 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+.encuesta-title{font-size:18px;font-weight:800;margin-bottom:4px;letter-spacing:-0.02em}
+.encuesta-sub{font-size:12px;color:var(--text3);margin-bottom:20px;font-family:var(--mono)}
+.encuesta-q{margin-bottom:18px}
+.encuesta-qlabel{font-size:13px;font-weight:700;margin-bottom:8px}
+.stars-row{display:flex;gap:6px}
+.star-btn{font-size:28px;cursor:pointer;transition:transform 0.1s;opacity:0.35;line-height:1}
+.star-btn.lit{opacity:1}
+.star-btn:active{transform:scale(1.2)}
+.encuesta-options{display:flex;flex-wrap:wrap;gap:6px}
+.enc-opt{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border2);background:var(--bg4);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.12s}
+.enc-opt.on{background:var(--c1l);border-color:var(--c1);color:var(--c1d);font-weight:700}
+.encuesta-ta{width:100%;background:var(--bg4);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;font-size:13px;font-family:var(--sans);color:var(--text);resize:none;height:80px;outline:none;line-height:1.5}
+.encuesta-ta:focus{border-color:var(--c1);background:#fff}
+.encuesta-submit{width:100%;padding:14px;background:var(--text);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;font-family:var(--sans);cursor:pointer;margin-top:10px}
+.encuesta-close{position:absolute;top:18px;right:18px;background:var(--bg4);border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.encuesta-card-wrap{position:relative}
+
+/* ── Desktop ── */
+@media(min-width:768px){
+  :root{--topbar:52px;--bottombar:0px}
+  .bottombar{display:none}
+  .view{top:var(--topbar);bottom:0}
+  #view-mapa{display:block!important;left:290px;right:0}
+  #view-lista{display:block!important;position:fixed;top:var(--topbar);left:0;bottom:0;width:290px;border-right:1px solid var(--border);z-index:20}
+  #view-panel{display:none;position:fixed;top:var(--topbar);right:0;bottom:0;width:310px;border-left:1px solid var(--border);z-index:30}
+  #view-panel.open{display:block}
+  #view-mapa.panel-open{right:310px}
+  .cuad-label-row{top:0}
+  .back-btn::after{content:'✕';font-size:14px}
+  .back-btn{font-size:0}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand-logo">CH</div>
+  <div class="brand-text">
+    <div class="brand-name">Charni</div>
+    <div class="brand-zone">ZONA CABA · <span id="save-indicator" style="color:#0D9E6E">● guardado</span></div>
+  </div>
+  <div class="top-pills">
+    <div class="top-pill"><span class="top-pill-num" id="st-v">0</span>&nbsp;visit.</div>
+    <div class="top-pill"><span class="top-pill-num" id="st-c">0</span>&nbsp;cont.</div>
+  </div>
+  <div class="help-btn" onclick="openTutorial()" title="Tutorial">?</div>
+  <div class="gps-btn" id="gps-btn" onclick="toggleGPS()" title="GPS">📍</div>
+</div>
+
+<!-- VIEWS -->
+<div class="view active" id="view-mapa">
+  <div id="leaflet-map"></div>
+</div>
+
+<div class="view" id="view-lista">
+  <div class="search-bar">
+    <div class="search-inner">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search-input" placeholder="Buscar cliente o tipo..." oninput="renderLista(this.value)">
+    </div>
+  </div>
+  <div id="lista-body" style="padding-bottom:8px"></div>
+</div>
+
+<div class="view" id="view-panel">
+  <div class="panel-header">
+    <button class="back-btn" onclick="closePanel()">←</button>
+    <div class="panel-title-wrap">
+      <div class="panel-client-name" id="p-name">—</div>
+      <span class="panel-cuad-pill" id="p-pill">—</span>
+    </div>
+  </div>
+  <div class="panel-body">
+    <div id="p-alert"></div>
+
+    <!-- Maps -->
+    <div class="maps-row">
+      <a class="maps-btn" id="btn-ver" href="#" target="_blank">
+        <span class="maps-btn-icon">🗺</span>
+        <span class="maps-btn-label">Ver en<br>Maps</span>
+      </a>
+      <a class="maps-btn" id="btn-llegar" href="#" target="_blank">
+        <span class="maps-btn-icon">🧭</span>
+        <span class="maps-btn-label">Cómo<br>llegar</span>
+      </a>
+      <a class="maps-btn" id="btn-wa-panel" href="#" target="_blank">
+        <span class="maps-btn-icon">💬</span>
+        <span class="maps-btn-label">WhatsApp</span>
+      </a>
+    </div>
+    <a class="route-btn" id="btn-ruta" href="#" target="_blank">🗺 Ruta del cuadrante</a>
+    <button class="start-route-btn" id="btn-start-here" onclick="startRouteFromHere()">📍 Empezar ruta desde aquí</button>
+
+    <!-- Estado -->
+    <div class="section-card">
+      <div class="section-title">Estado de visita</div>
+      <div class="pills">
+        <div class="pill sa" id="pp-pend" onclick="setPill('estado','pendiente','a')">⏳ Pendiente</div>
+        <div class="pill" id="pp-visit" onclick="setPill('estado','visitado','g')">✓ Visitado</div>
+        <div class="pill" id="pp-noat" onclick="setPill('estado','no-atiende','r')">✗ No atendió</div>
+      </div>
+    </div>
+
+    <!-- Contacto -->
+    <div class="section-card">
+      <div class="section-title">Contacto obtenido</div>
+      <div class="pills">
+        <div class="pill" id="pp-noc" onclick="setPill('contacto','ninguno','r')">✗ Ninguno</div>
+        <div class="pill" id="pp-due" onclick="setPill('contacto','dueno','g')">Dueño</div>
+        <div class="pill" id="pp-enc" onclick="setPill('contacto','encargado','g')">Encargado</div>
+      </div>
+    </div>
+
+    <!-- Marcas -->
+    <div class="section-card">
+      <div class="section-title">Trabaja con marcas</div>
+      <div class="brand-grid">
+        <div class="brand-btn" id="bb-cagnoli" onclick="toggleBrand('cagnoli')"><span class="bchk" id="bchk-cagnoli"></span>Cagnoli</div>
+        <div class="brand-btn" id="bb-donatilio" onclick="toggleBrand('donatilio')"><span class="bchk" id="bchk-donatilio"></span>Don Atilio</div>
+        <div class="brand-btn" id="bb-vidal" onclick="toggleBrand('vidal')"><span class="bchk" id="bchk-vidal"></span>L. Vidal</div>
+        <div class="brand-btn" id="bb-lasdinas" onclick="toggleBrand('lasdinas')"><span class="bchk" id="bchk-lasdinas"></span>Las Dinas</div>
+      </div>
+    </div>
+
+    <!-- Tamaño -->
+    <div class="section-card">
+      <div class="section-title">Tamaño del local</div>
+      <div class="size-row">
+        <div class="sz-btn" id="sz-ch" onclick="setSize('chico')">Chico</div>
+        <div class="sz-btn" id="sz-me" onclick="setSize('mediano')">Mediano</div>
+        <div class="sz-btn" id="sz-gr" onclick="setSize('grande')">Grande</div>
+      </div>
+    </div>
+
+    <!-- Notas -->
+    <div class="section-card">
+      <div class="section-title">Observaciones</div>
+      <textarea class="notes-ta" id="p-notes" placeholder="Interesado en Reggianito, volver el jueves..."></textarea>
+    </div>
+
+    <!-- Historial -->
+    <div class="section-card">
+      <div class="section-title">Historial de cambios</div>
+      <div id="p-historial"></div>
+    </div>
+
+    <button class="save-btn" onclick="saveVisita()">Guardar visita</button>
+    <button class="no-visit-btn" id="btn-no-visitar" onclick="toggleNoVisitar()">🚫 No visitar de nuevo</button>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<!-- EXPORTAR -->
+<div class="view" id="view-exportar">
+  <div style="padding:14px">
+    <div class="export-title">Exportar jornada</div>
+    <div class="export-sub" id="export-fecha">—</div>
+
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-num" id="ex-total">0</div><div class="stat-box-lbl">Total</div></div>
+      <div class="stat-box"><div class="stat-box-num" id="ex-visit">0</div><div class="stat-box-lbl">Visitados</div></div>
+      <div class="stat-box"><div class="stat-box-num" id="ex-cont">0</div><div class="stat-box-lbl">Contactos</div></div>
+    </div>
+
+    <div class="export-card">
+      <h3>📄 Exportar CSV</h3>
+      <p>Descarga un archivo con todos los clientes, estado, contacto, marcas, tamaño y observaciones.</p>
+      <button class="export-btn green" onclick="exportCSV()">⬇ Descargar CSV</button>
+    </div>
+
+    <div class="export-card">
+      <h3>💬 Resumen por WhatsApp</h3>
+      <p>Envía un resumen del día directamente a Gastón Charni por WhatsApp.</p>
+      <button class="export-btn wa" onclick="exportWhatsApp()">Enviar resumen a Gastón</button>
+    </div>
+
+    <div class="export-card">
+      <h3>📝 Feedback de jornada</h3>
+      <p>Completá una encuesta rápida sobre cómo resultó el día. Se incluye en el resumen.</p>
+      <button class="export-btn blue" onclick="openEncuesta()">Completar encuesta</button>
+    </div>
+
+    <div class="export-card">
+      <h3>🔄 Nueva jornada</h3>
+      <p>Reinicia el estado de visitas según la lógica inteligente: conserva contactos obtenidos, resetea los que no atendieron.</p>
+      <button class="export-btn" style="background:#FEE2E2;color:#991B1B" onclick="resetJornada()">Nueva jornada inteligente</button>
+    </div>
+
+    <div class="export-card">
+      <h3>📊 Historial de jornada</h3>
+      <p>Todos los cambios registrados durante el día, con hora exacta.</p>
+      <div id="historial-global" style="max-height:200px;overflow-y:auto;margin-top:0"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RECURSOS VIEW -->
+<div class="view" id="view-recursos" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="padding:14px">
+    <div class="export-title">Recursos</div>
+    <div class="export-sub">Links y materiales de apoyo</div>
+
+    <!-- Catálogo Digital — botón destacado -->
+    <a class="recurso-link" href="https://1charnidistribucion.github.io/charni-catalogo/catalogo_gc.html" target="_blank" style="background:var(--c1l);border-color:var(--c1);margin-bottom:14px">
+      <span class="recurso-icon">🛒</span>
+      <div class="recurso-body">
+        <div class="recurso-name" style="color:var(--c1d)">Catálogo Digital Charni</div>
+        <div class="recurso-desc">Cargá productos al carrito → cotizá por WhatsApp</div>
+      </div>
+      <span class="recurso-arrow" style="color:var(--c1)">↗</span>
+    </a>
+
+    <!-- WhatsApp Gastón -->
+    <a class="recurso-link" href="https://wa.me/5492494544945" target="_blank">
+      <span class="recurso-icon">💬</span>
+      <div class="recurso-body">
+        <div class="recurso-name">WhatsApp Gastón Charni</div>
+        <div class="recurso-desc">+54 9 2494 544945 · Consultas y soporte</div>
+      </div>
+      <span class="recurso-arrow">↗</span>
+    </a>
+
+    <!-- Catálogos de marcas -->
+    <div class="export-card" style="margin-top:16px">
+      <h3>📋 Catálogos de marcas</h3>
+      <p>Fichas técnicas y líneas de productos de cada marca distribuida.</p>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:8px">
+
+        <a onclick="abrirCatalogo('donatilio')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg4);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;text-decoration:none;color:var(--text);transition:all 0.15s">
+          <span style="font-size:18px">🧀</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Don Atilio</div>
+            <div style="font-size:11px;color:var(--text3)">Quesos duros, semiblandos y blandos · Tandil</div>
+          </div>
+          <span style="font-size:13px;color:var(--text3)">↗</span>
+        </a>
+
+        <a onclick="abrirCatalogo('cagnoli')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg4);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;text-decoration:none;color:var(--text);transition:all 0.15s">
+          <span style="font-size:18px">🧀</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Cagnoli</div>
+            <div style="font-size:11px;color:var(--text3)">Línea completa de quesos artesanales</div>
+          </div>
+          <span style="font-size:13px;color:var(--text3)">↗</span>
+        </a>
+
+        <a onclick="abrirCatalogo('lasdinas')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg4);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;text-decoration:none;color:var(--text);transition:all 0.15s">
+          <span style="font-size:18px">🥩</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Las Dinas</div>
+            <div style="font-size:11px;color:var(--text3)">Chacinados · Salazones, cocidos, ahumados, embutidos</div>
+          </div>
+          <span style="font-size:13px;color:var(--text3)">↗</span>
+        </a>
+
+        <a onclick="abrirCatalogo('vidal')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg4);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;text-decoration:none;color:var(--text);transition:all 0.15s">
+          <span style="font-size:18px">🥛</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Lácteos Vidal</div>
+            <div style="font-size:11px;color:var(--text3)">Muzzarella, quesos, dulce de leche, ricota · www.lacteosvidal.com.ar</div>
+          </div>
+          <span style="font-size:13px;color:var(--text3)">↗</span>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Modal visor PDF inline -->
+    <div id="pdf-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.8);flex-direction:column">
+      <div style="display:flex;align-items:center;padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);gap:10px">
+        <button onclick="cerrarCatalogo()" style="background:var(--bg4);border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;font-family:var(--sans);cursor:pointer">← Volver</button>
+        <div id="pdf-titulo" style="flex:1;font-size:14px;font-weight:800;font-family:var(--sans)"></div>
+        <a id="pdf-abrir" href="#" target="_blank" style="background:var(--c1);color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;font-family:var(--sans);text-decoration:none">Abrir ↗</a>
+      </div>
+      <iframe id="pdf-frame" src="" style="flex:1;border:none;width:100%;height:100%"></iframe>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM TABS -->
+<div class="bottombar">
+  <button class="tab-btn active" id="tab-mapa" onclick="switchTab('mapa')"><span class="tab-icon">🗺</span>Mapa</button>
+  <button class="tab-btn" id="tab-lista" onclick="switchTab('lista')"><span class="tab-icon">📋</span>Clientes</button>
+  <button class="tab-btn" id="tab-exportar" onclick="switchTab('exportar');refreshExport()"><span class="tab-icon">📤</span>Exportar</button>
+  <button class="tab-btn" id="tab-recursos" onclick="switchTab('recursos')"><span class="tab-icon">📚</span>Recursos</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- TUTORIAL OVERLAY -->
+<div class="tutorial-overlay hidden" id="tutorial-overlay">
+  <div class="tutorial-card">
+    <div class="tutorial-step-dots" id="tutorial-dots"></div>
+    <div class="tutorial-emoji" id="tutorial-emoji"></div>
+    <div class="tutorial-title" id="tutorial-title"></div>
+    <div class="tutorial-text" id="tutorial-text"></div>
+    <div class="tutorial-btns">
+      <button class="tutorial-skip" onclick="closeTutorial()">Saltar</button>
+      <button class="tutorial-next" id="tutorial-next-btn" onclick="tutorialNext()">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENCUESTA MODAL -->
+<div class="encuesta-overlay hidden" id="encuesta-overlay">
+  <div class="encuesta-card">
+    <div class="encuesta-card-wrap">
+      <button class="encuesta-close" onclick="closeEncuesta()">✕</button>
+      <div class="encuesta-title">📝 Feedback del día</div>
+      <div class="encuesta-sub" id="encuesta-fecha-sub">—</div>
+
+      <div class="encuesta-q">
+        <div class="encuesta-qlabel">1. ¿Qué tan fácil fue usar la app hoy? (1–5 ⭐)</div>
+        <div class="stars-row" id="stars-facilidad">
+          <span class="star-btn" onclick="setStars('facilidad',1)">⭐</span>
+          <span class="star-btn" onclick="setStars('facilidad',2)">⭐</span>
+          <span class="star-btn" onclick="setStars('facilidad',3)">⭐</span>
+          <span class="star-btn" onclick="setStars('facilidad',4)">⭐</span>
+          <span class="star-btn" onclick="setStars('facilidad',5)">⭐</span>
+        </div>
+      </div>
+
+      <div class="encuesta-q">
+        <div class="encuesta-qlabel">2. ¿Qué fue lo más difícil? (podés elegir varios)</div>
+        <div class="encuesta-options" id="enc-dificil">
+          <div class="enc-opt" onclick="toggleEncOpt('dificil',this,'registrar')">Registrar visitas</div>
+          <div class="enc-opt" onclick="toggleEncOpt('dificil',this,'navegar')">Navegar el mapa</div>
+          <div class="enc-opt" onclick="toggleEncOpt('dificil',this,'encontrar')">Encontrar clientes</div>
+          <div class="enc-opt" onclick="toggleEncOpt('dificil',this,'exportar')">Exportar datos</div>
+          <div class="enc-opt" onclick="toggleEncOpt('dificil',this,'nada')">Nada, todo bien</div>
+        </div>
+      </div>
+
+      <div class="encuesta-q">
+        <div class="encuesta-qlabel">3. ¿Cuántos locales visitaste hoy en total?</div>
+        <div class="encuesta-options" id="enc-cant">
+          <div class="enc-opt" onclick="toggleEncOpt('cant',this,'1-3','single')">1–3</div>
+          <div class="enc-opt" onclick="toggleEncOpt('cant',this,'4-6','single')">4–6</div>
+          <div class="enc-opt" onclick="toggleEncOpt('cant',this,'7-9','single')">7–9</div>
+          <div class="enc-opt" onclick="toggleEncOpt('cant',this,'10+','single')">10+</div>
+        </div>
+      </div>
+
+      <div class="encuesta-q">
+        <div class="encuesta-qlabel">4. ¿Tenés alguna sugerencia para mejorar la app?</div>
+        <textarea class="encuesta-ta" id="enc-sugerencia" placeholder="Escribí lo que quieras..."></textarea>
+      </div>
+
+      <button class="encuesta-submit" onclick="submitEncuesta()">Enviar feedback a Gastón 💬</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const CQ={
+  'San Cristóbal Sur':{id:'C1',f:'San Cristóbal Sur',c:'#1D6AF5',lt:'#E8F0FE',dt:'#1251B8'},
+  'Almagro / San Cristóbal Norte':{id:'C2',f:'Almagro / San Cristóbal Norte',c:'#0D9E6E',lt:'#DCFDF0',dt:'#065F46'},
+  'Caballito / Flores Oeste':{id:'C3',f:'Caballito / Flores Oeste',c:'#E07B00',lt:'#FEF3DC',dt:'#92400E'},
+  'Flores Norte / Villa del Parque':{id:'C4',f:'Flores Norte / Villa del Parque',c:'#6D28D9',lt:'#EDE9FE',dt:'#4C1D95'},
+  'Sin área asignada':{id:'X',f:'Sin área asignada',c:'#8A8880',lt:'#F3F2EE',dt:'#57534E'},
+};
+
+const CL=[
+  {id:1,q:'San Cristóbal Sur',n:'Fiambres del Sur',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.6131491,lng:-58.3849808},
+  {id:2,q:'San Cristóbal Sur',n:'La Picadita de Moreno',t:'Almacén/Despacho',v:'barrio',tel:null,s:1,a:'enfriado',ya:false,lat:-34.6125646,lng:-58.3893032},
+  {id:3,q:'San Cristóbal Sur',n:'Fiambrería San Expedito',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.6114647,lng:-58.3990817},
+  {id:4,q:'Almagro / San Cristóbal Norte',n:'Picadas Capitales 3',t:'Picadas',v:'barrio',tel:'541148248641',s:1,a:'',ya:false,lat:-34.5995558,lng:-58.3885359},
+  {id:5,q:'Almagro / San Cristóbal Norte',n:'Tienda de Fiambres',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5968756,lng:-58.3852573},
+  {id:6,q:'Almagro / San Cristóbal Norte',n:'Almacén 1249',t:'Almacén Gourmet',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.5947077,lng:-58.3851227},
+  {id:7,q:'Almagro / San Cristóbal Norte',n:'Al Sandwich',t:'Sandwichería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5967059,lng:-58.3869941},
+  {id:8,q:'Almagro / San Cristóbal Norte',n:'Rustica',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5970973,lng:-58.3862654},
+  {id:9,q:'Almagro / San Cristóbal Norte',n:'Black Panther',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'extremo',ya:false,lat:-34.5999044,lng:-58.3739631},
+  {id:10,q:'Almagro / San Cristóbal Norte',n:'Proviamo Almacén Gourmet',t:'Almacén Gourmet',v:'boutique',tel:'541148930999',s:1,a:'',ya:false,lat:-34.6037304,lng:-58.3767186},
+  {id:11,q:'Almagro / San Cristóbal Norte',n:'Al Gran Queso',t:'Quesería',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.5902623,lng:-58.3935136},
+  {id:12,q:'Almagro / San Cristóbal Norte',n:'El Nene',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5901547,lng:-58.3880171},
+  {id:13,q:'Caballito / Flores Oeste',n:'Il Sardo',t:'Almacén Gourmet',v:'boutique',tel:'541149638242',s:1,a:'',ya:true,lat:-34.5954592,lng:-58.4041265},
+  {id:14,q:'Caballito / Flores Oeste',n:'La Tradicional Charcuterie',t:'Charcutería',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.5943587,lng:-58.4055381},
+  {id:15,q:'Caballito / Flores Oeste',n:'Fiambrería Mayorca',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5953086,lng:-58.4106605},
+  {id:16,q:'Caballito / Flores Oeste',n:'La Mortadela Adela',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5940721,lng:-58.4129290},
+  {id:17,q:'Caballito / Flores Oeste',n:'CATÁ Fiambrería Boutique',t:'Boutique',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.5930408,lng:-58.4120283},
+  {id:18,q:'Caballito / Flores Oeste',n:'Quesar Delicateses',t:'Quesería',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.5957009,lng:-58.4153508},
+  {id:19,q:'Caballito / Flores Oeste',n:'Sandwichería Los Rolos',t:'Sandwichería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5981444,lng:-58.4115409},
+  {id:20,q:'Caballito / Flores Oeste',n:'Fiambrería El Horizonte',t:'Fiambrería',v:'barrio',tel:null,s:2,a:'',ya:false,lat:-34.5976092,lng:-58.4212770},
+  {id:21,q:'Caballito / Flores Oeste',n:'Casa Tambo',t:'Fiambrería & Quesería',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.6024694,lng:-58.4157172},
+  {id:22,q:'Caballito / Flores Oeste',n:'JR Quesería',t:'Quesería',v:'boutique',tel:null,s:1,a:'',ya:false,lat:-34.6024805,lng:-58.4195050},
+  {id:23,q:'Flores Norte / Villa del Parque',n:'La Esquina Fiambrería',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5856264,lng:-58.4117403},
+  {id:24,q:'Flores Norte / Villa del Parque',n:'Placer Argentino-Picadas',t:'Picadas',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5830504,lng:-58.4259882},
+  {id:25,q:'Flores Norte / Villa del Parque',n:'La Liria (Fiambrería & Quesería)',t:'Fiambrería & Quesería',v:'boutique',tel:'541148280194',s:1,a:'',ya:false,lat:-34.5910532,lng:-58.4129050},
+  {id:26,q:'Flores Norte / Villa del Parque',n:'Fiambrería Don Arturo',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5877300,lng:-58.4179377},
+  {id:27,q:'Flores Norte / Villa del Parque',n:'Fiambrería La Cumbre',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'',ya:false,lat:-34.5849020,lng:-58.4191720},
+  {id:28,q:'Sin área asignada',n:'Fiambrería Casa Campo',t:'Fiambrería',v:'barrio',tel:null,s:1,a:'ancla',ya:false,lat:-34.6010828,lng:-58.4239117},
+];
+
+// Orden óptimo por cuadrante (nearest-neighbor pre-calculado)
+const ROUTE_ORDER={
+  'San Cristóbal Sur':[3,2,1],
+  'Almagro / San Cristóbal Norte':[11,12,7,8,5,6,4,10,9],
+  'Caballito / Flores Oeste':[14,13,19,15,16,17,18,21,22,20],
+  'Flores Norte / Villa del Parque':[24,27,26,25,23],
+};
+
+const STORAGE_KEY='charni_caba_v5';
+const ST={};
+const HIST={};
+const HIST_GLOBAL=[];
+
+// ── PERSISTENCIA ─────────────────────────────────────────
+function loadFromStorage(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return;
+    const data=JSON.parse(raw);
+    if(data.ST) Object.assign(ST,data.ST);
+    if(data.HIST) Object.assign(HIST,data.HIST);
+    if(data.HIST_GLOBAL && Array.isArray(data.HIST_GLOBAL)) HIST_GLOBAL.push(...data.HIST_GLOBAL);
+  }catch(e){console.warn('No se pudo cargar estado guardado',e);}
+}
+
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({ST,HIST,HIST_GLOBAL}));
+    const ind=document.getElementById('save-indicator');
+    if(ind){ind.style.color='#0D9E6E';ind.textContent='● guardado';}
+  }catch(e){
+    const ind=document.getElementById('save-indicator');
+    if(ind){ind.style.color='#E53E3E';ind.textContent='● sin guardar';}
+  }
+}
+
+loadFromStorage();
+
+function st(id){
+  if(!ST[id])ST[id]={estado:'pendiente',contacto:'',marcas:[],tamano:'',notas:'',noVisitar:false,sinResultado:0};
+  return ST[id];
+}
+
+function addHist(id,msg){
+  if(!HIST[id])HIST[id]=[];
+  const ts=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry={ts,msg};
+  HIST[id].unshift(entry);
+  if(HIST[id].length>10)HIST[id].pop();
+  if(id>0){
+    const c=CL.find(x=>x.id===id);
+    if(c){
+      HIST_GLOBAL.unshift({ts,msg:`${c.n}: ${msg}`});
+      if(HIST_GLOBAL.length>50)HIST_GLOBAL.pop();
+    }
+  }
+  saveToStorage();
+}
+
+let selId=null, activeTab='mapa';
+let gpsActive=false, gpsMarker=null, watchId=null, gpsCoords=null;
+let leafMap=null, leafMarkers={};
+
+// ── RESET INTELIGENTE DE JORNADA ─────────────────────────
+function resetJornada(){
+  if(!confirm('¿Iniciamos nueva jornada?\n\n✅ Se conservan: clientes con contacto obtenido\n🔄 Se resetean: los que no atendieron o siguen pendientes\n\nExportá el CSV antes si querés guardar los datos de hoy.')) return;
+  Object.keys(ST).forEach(k=>{
+    const s=ST[k];
+    const tieneContacto=s.contacto==='dueno'||s.contacto==='encargado';
+    const noVisitar=s.noVisitar;
+    if(noVisitar){
+      // Mantener como no-visitar
+    } else if(tieneContacto){
+      // Conservar estado, solo limpiar notas y marcas del día
+      s.estado='visitado';// conservar
+    } else {
+      // Resetear: pendiente para reintentar
+      const sinRes=s.estado==='no-atiende'?1:0;
+      s.sinResultado=(s.sinResultado||0)+sinRes;
+      s.estado='pendiente';
+      s.contacto='';
+      s.marcas=[];
+      s.tamano='';
+      s.notas='';
+      // Auto-marcar difícil acceso si 2+ visitas sin resultado
+      if(s.sinResultado>=2){
+        s.dificulAcceso=true;
+      }
+    }
+  });
+  Object.keys(HIST).forEach(k=>delete HIST[k]);
+  HIST_GLOBAL.length=0;
+  saveToStorage();
+  updateStats();
+  updateAllMarkers();
+  renderLista(document.getElementById('search-input').value);
+  showToast('✓ Nueva jornada iniciada');
+}
+
+// ── NO VISITAR ────────────────────────────────────────────
+function toggleNoVisitar(){
+  if(!selId)return;
+  const s=st(selId);
+  s.noVisitar=!s.noVisitar;
+  const btn=document.getElementById('btn-no-visitar');
+  if(s.noVisitar){
+    btn.textContent='↩ Volver a visitar';
+    btn.classList.add('active');
+    addHist(selId,'Marcado como: no visitar de nuevo');
+  } else {
+    btn.textContent='🚫 No visitar de nuevo';
+    btn.classList.remove('active');
+    addHist(selId,'Marcado como: volver a visitar');
+  }
+  updateMarkerIcon(selId,true);
+  renderLista(document.getElementById('search-input').value);
+  saveToStorage();
+}
+
+// ── RUTAS DINÁMICAS DESDE PUNTO ELEGIDO ──────────────────
+function startRouteFromHere(){
+  if(!selId)return;
+  const c=CL.find(x=>x.id===selId);
+  if(!c)return;
+  const orden=ROUTE_ORDER[c.q];
+  if(!orden||orden.length<2){showToast('Cuadrante sin ruta definida');return;}
+  // Nearest-neighbor desde selId
+  const todos=orden.map(id=>CL.find(x=>x.id===id)).filter(Boolean);
+  const restantes=[...todos];
+  const startIdx=restantes.findIndex(x=>x.id===selId);
+  if(startIdx<0){showToast('Cliente no está en la ruta del cuadrante');return;}
+  // Reorganizar: empezar desde el seleccionado
+  const ordenDesde=[...restantes.slice(startIdx),...restantes.slice(0,startIdx)];
+  if(ordenDesde.length<2){showToast('No hay suficientes paradas');return;}
+  const first=ordenDesde[0];
+  const last=ordenDesde[ordenDesde.length-1];
+  const wps=ordenDesde.slice(1,-1).map(x=>`${x.lat},${x.lng}`).join('|');
+  let url=`https://www.google.com/maps/dir/?api=1&origin=${first.lat},${first.lng}&destination=${last.lat},${last.lng}&travelmode=walking`;
+  if(wps) url+=`&waypoints=${encodeURIComponent(wps)}`;
+  window.open(url,'_blank');
+  showToast(`Ruta desde ${c.n}`);
+}
+
+// ── LEAFLET ───────────────────────────────────────────────
+function initMap(){
+  leafMap=L.map('leaflet-map',{zoomControl:true,attributionControl:true}).setView([-34.600,-58.395],14);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+    subdomains:'abcd',
+    maxZoom:19
+  }).addTo(leafMap);
+
+  const cuadCircles={
+    'San Cristóbal Sur':{center:[-34.6124,-58.3910],r:900},
+    'Almagro / San Cristóbal Norte':{center:[-34.5970,-58.3860],r:1200},
+    'Caballito / Flores Oeste':{center:[-34.5958,-58.4120],r:1100},
+    'Flores Norte / Villa del Parque':{center:[-34.5865,-58.4175],r:900},
+  };
+  Object.entries(cuadCircles).forEach(([qname,{center,r}])=>{
+    const cu=CQ[qname];
+    L.circle(center,{radius:r,color:cu.c,fillColor:cu.c,fillOpacity:0.06,weight:1.5,dashArray:'8,6'}).addTo(leafMap);
+  });
+
+  CL.forEach(c=>addMarker(c));
+}
+
+function makePinIcon(c,selected=false){
+  const cu=CQ[c.q];
+  const s=st(c.id);
+  let col;
+  if(s.noVisitar) col='#9CA3AF';
+  else if(s.dificulAcceso) col='#F59E0B';
+  else if(s.estado==='visitado') col='#0D9E6E';
+  else if(s.estado==='no-atiende') col='#E53E3E';
+  else col=cu.c;
+  const sz=selected?44:c.v==='boutique'?36:30;
+  const ic=c.v==='boutique'?'★':(c.ya?'✓':'·');
+  const ring=c.ya?`<circle cx="${sz/2}" cy="${sz*0.38}" r="${sz*0.42}" fill="none" stroke="#0D9E6E" stroke-width="2" stroke-dasharray="3,2" opacity="0.8"/>`:'';
+  const selRing=selected?`<circle cx="${sz/2}" cy="${sz*0.38}" r="${sz*0.48}" fill="${col}" opacity="0.15"/>`:''  ;
+  const svg=`<svg width="${sz}" height="${sz+8}" viewBox="0 0 ${sz} ${sz+8}" xmlns="http://www.w3.org/2000/svg">
+    ${selRing}${ring}
+    <path d="M${sz/2},${sz+4} C${sz*0.15},${sz*0.75} ${sz*0.05},${sz*0.42} ${sz/2},${sz*0.1} C${sz*0.95},${sz*0.42} ${sz*0.85},${sz*0.75} ${sz/2},${sz+4}Z"
+      fill="${col}" stroke="white" stroke-width="${selected?2.5:2}"/>
+    <circle cx="${sz/2}" cy="${sz*0.38}" r="${sz*0.22}" fill="rgba(255,255,255,0.92)"/>
+    <text x="${sz/2}" y="${sz*0.38}" text-anchor="middle" dominant-baseline="central" font-size="${sz*0.18}" fill="${col}" font-family="Plus Jakarta Sans,sans-serif" font-weight="800">${ic}</text>
+  </svg>`;
+  return L.divIcon({html:svg,className:'',iconSize:[sz,sz+8],iconAnchor:[sz/2,sz+4],popupAnchor:[0,-(sz+8)]});
+}
+
+function addMarker(c){
+  const cu=CQ[c.q];
+  const m=L.marker([c.lat,c.lng],{icon:makePinIcon(c)}).addTo(leafMap);
+  const chips=buildChips(c);
+  const popupHtml=`
+    <div class="popup-inner">
+      <div class="popup-name">${c.n}</div>
+      <div class="popup-tipo">${c.t} · ${cu.f}</div>
+      ${chips?`<div class="popup-chips">${chips}</div>`:''}
+    </div>
+    <div class="popup-btns">
+      <a class="popup-btn" href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank">🗺 Ver</a>
+      <a class="popup-btn" href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=walking" target="_blank">🧭 Ir</a>
+      <div class="popup-btn primary" onclick="selectFromPopup(${c.id})">✎ Registrar visita</div>
+      <div class="popup-btn start-here" onclick="selectFromPopupAndRoute(${c.id})">📍 Empezar ruta desde aquí</div>
+    </div>`;
+  m.bindPopup(popupHtml,{maxWidth:240,minWidth:220});
+  m.on('click',()=>{ updateMarkerIcon(c.id); });
+  leafMarkers[c.id]=m;
+}
+
+function updateMarkerIcon(id,selected=false){
+  const c=CL.find(x=>x.id===id);
+  if(leafMarkers[id]) leafMarkers[id].setIcon(makePinIcon(c,selected));
+}
+
+function updateAllMarkers(){
+  CL.forEach(c=>updateMarkerIcon(c.id,c.id===selId));
+}
+
+window.selectFromPopup=function(id){
+  leafMap.closePopup();
+  selectClient(id);
+  if(window.innerWidth<768) switchTab('panel');
+};
+
+window.selectFromPopupAndRoute=function(id){
+  leafMap.closePopup();
+  selId=id;
+  startRouteFromHere();
+};
+
+function buildChips(c){
+  let chips='';
+  if(c.v==='boutique')chips+=`<span class="popup-chip chip-b">★ Boutique</span>`;
+  if(c.ya)chips+=`<span class="popup-chip chip-c">⚡ Cliente</span>`;
+  if(c.s>1)chips+=`<span class="popup-chip chip-s">${c.s} suc.</span>`;
+  if(c.a==='enfriado')chips+=`<span class="popup-chip chip-e">⚠ Enfriado</span>`;
+  const s=st(c.id);
+  if(s.noVisitar)chips+=`<span class="popup-chip chip-nv">🚫 No visitar</span>`;
+  if(s.dificulAcceso)chips+=`<span class="popup-chip chip-da">⚠ Difícil acceso</span>`;
+  return chips;
+}
+
+// ── LISTA ─────────────────────────────────────────────────
+function renderLista(filter=''){
+  const body=document.getElementById('lista-body');body.innerHTML='';
+  const cuadKeys=['San Cristóbal Sur','Almagro / San Cristóbal Norte','Caballito / Flores Oeste','Flores Norte / Villa del Parque','Sin área asignada'];
+  cuadKeys.forEach(qname=>{
+    const cu=CQ[qname];
+    const items=CL.filter(c=>c.q===qname&&(!filter||c.n.toLowerCase().includes(filter.toLowerCase())||c.t.toLowerCase().includes(filter.toLowerCase())));
+    if(!items.length)return;
+    const lbl=document.createElement('div');lbl.className='cuad-label-row';
+    lbl.innerHTML=`<div class="cuad-pip" style="background:${cu.c}"></div><span class="cuad-name-t" style="color:${cu.c}">${cu.f}</span><span class="cuad-n">${items.length}</span>`;
+    body.appendChild(lbl);
+    items.forEach((c,i)=>{
+      const s=st(c.id);
+      const init=c.n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      let stCol='#D1D5DB';
+      if(s.noVisitar) stCol='#9CA3AF';
+      else if(s.dificulAcceso) stCol='#F59E0B';
+      else if(s.estado==='visitado') stCol='#0D9E6E';
+      else if(s.estado==='no-atiende') stCol='#E53E3E';
+      let chips='';
+      if(c.v==='boutique')chips+=`<span class="chip chip-b">★ Boutique</span>`;
+      if(c.ya)chips+=`<span class="chip chip-c">⚡ Cliente</span>`;
+      if(c.s>1)chips+=`<span class="chip chip-s">${c.s} suc.</span>`;
+      if(c.a==='enfriado')chips+=`<span class="chip chip-e">⚠ Enfriado</span>`;
+      if(c.a==='extremo')chips+=`<span class="chip chip-w">↗ Extremo</span>`;
+      if(c.a==='ancla')chips+=`<span class="chip chip-a">⚓ Ancla</span>`;
+      if(s.noVisitar)chips+=`<span class="chip chip-nv">🚫 No visitar</span>`;
+      if(s.dificulAcceso)chips+=`<span class="chip chip-da">⚠ Difícil acceso</span>`;
+      const card=document.createElement('div');
+      card.className='client-card'+(c.id===selId?' sel':'')+(s.noVisitar?' no-visitar':'');
+      card.style.animationDelay=`${i*0.03}s`;
+      card.id=`card-${c.id}`;
+      card.innerHTML=`
+        <div class="c-av" style="background:${cu.lt};color:${cu.dt}">${init}</div>
+        <div class="c-body">
+          <div class="c-name">${c.n}</div>
+          <div class="c-tipo">${c.t}</div>
+          ${chips?`<div class="c-chips">${chips}</div>`:''}
+        </div>
+        <div class="c-right">
+          <div class="status-ring" style="background:${stCol}"></div>
+          ${c.tel?`<a class="c-wa-btn" href="https://wa.me/${c.tel}" target="_blank" onclick="event.stopPropagation()">💬</a>`:''}
+        </div>`;
+      card.addEventListener('click',()=>selectClient(c.id));
+      body.appendChild(card);
+    });
+  });
+}
+
+// ── PANEL ─────────────────────────────────────────────────
+function openPanel(id){
+  const c=CL.find(x=>x.id===id),s=st(id),cu=CQ[c.q];
+  document.getElementById('p-name').textContent=c.n;
+  const pill=document.getElementById('p-pill');
+  pill.textContent=`${cu.f} · ${c.t}`;pill.style.background=cu.lt;pill.style.color=cu.dt;
+
+  const aw=document.getElementById('p-alert');
+  let alerts='';
+  if(c.a==='enfriado') alerts+=`<div class="alert-box alert-amber">⚠️ Relación enfriada — visita de recuperación.</div>`;
+  if(c.a==='ancla') alerts+=`<div class="alert-box alert-blue">⚓ Ancla de zona nueva.</div>`;
+  if(c.a==='extremo') alerts+=`<div class="alert-box alert-blue">↗ Extremo del cuadrante.</div>`;
+  if(s.noVisitar) alerts+=`<div class="alert-box alert-red">🚫 Marcado como no visitar de nuevo.</div>`;
+  if(s.dificulAcceso) alerts+=`<div class="alert-box alert-amber">⚠ Difícil acceso — 2+ visitas sin resultado.</div>`;
+  aw.innerHTML=alerts;
+
+  document.getElementById('btn-ver').href=`https://www.google.com/maps?q=${c.lat},${c.lng}`;
+
+  let dest=`${c.lat},${c.lng}`;
+  let llegaUrl=`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=walking`;
+  if(gpsCoords) llegaUrl=`https://www.google.com/maps/dir/?api=1&origin=${gpsCoords.lat},${gpsCoords.lng}&destination=${dest}&travelmode=walking`;
+  document.getElementById('btn-llegar').href=llegaUrl;
+
+  const waBtn=document.getElementById('btn-wa-panel');
+  if(c.tel){waBtn.href=`https://wa.me/${c.tel}`;waBtn.classList.remove('disabled');}
+  else{waBtn.href='#';waBtn.classList.add('disabled');}
+
+  // Ruta cuadrante
+  const orden=ROUTE_ORDER[c.q]||CL.filter(x=>x.q===c.q).map(x=>x.id);
+  const clientes_ruta=orden.map(id=>CL.find(x=>x.id===id)).filter(Boolean);
+  if(clientes_ruta.length>=2){
+    const first=clientes_ruta[0],last=clientes_ruta[clientes_ruta.length-1];
+    const wps=clientes_ruta.slice(1,-1).map(x=>`${x.lat},${x.lng}`).join('|');
+    let rutaUrl=`https://www.google.com/maps/dir/?api=1&origin=${first.lat},${first.lng}&destination=${last.lat},${last.lng}&travelmode=walking`;
+    if(wps) rutaUrl+=`&waypoints=${encodeURIComponent(wps)}`;
+    const rb=document.getElementById('btn-ruta');
+    rb.href=rutaUrl;rb.textContent=`🗺 Ruta ${cu.f} — ${clientes_ruta.length} paradas`;
+  }
+
+  // Pills estado
+  ['pend','visit','noat'].forEach(k=>document.getElementById(`pp-${k}`).className='pill');
+  if(s.estado==='visitado') document.getElementById('pp-visit').className='pill sg';
+  else if(s.estado==='no-atiende') document.getElementById('pp-noat').className='pill sr';
+  else document.getElementById('pp-pend').className='pill sa';
+
+  ['noc','due','enc'].forEach(k=>document.getElementById(`pp-${k}`).className='pill');
+  if(s.contacto==='ninguno') document.getElementById('pp-noc').className='pill sr';
+  else if(s.contacto==='dueno') document.getElementById('pp-due').className='pill sg';
+  else if(s.contacto==='encargado') document.getElementById('pp-enc').className='pill sg';
+
+  ['cagnoli','donatilio','vidal','lasdinas'].forEach(m=>{
+    const on=s.marcas.includes(m);
+    document.getElementById(`bb-${m}`).className='brand-btn'+(on?' on':'');
+    document.getElementById(`bchk-${m}`).textContent=on?'✓':'';
+  });
+  ['ch','me','gr'].forEach(k=>document.getElementById(`sz-${k}`).className='sz-btn');
+  const szm={chico:'ch',mediano:'me',grande:'gr'};
+  if(s.tamano) document.getElementById(`sz-${szm[s.tamano]}`).className='sz-btn on';
+  document.getElementById('p-notes').value=s.notas||'';
+
+  // Botón no visitar
+  const nvBtn=document.getElementById('btn-no-visitar');
+  if(s.noVisitar){nvBtn.textContent='↩ Volver a visitar';nvBtn.classList.add('active');}
+  else{nvBtn.textContent='🚫 No visitar de nuevo';nvBtn.classList.remove('active');}
+
+  renderHistorial(id);
+
+  const isMob=window.innerWidth<768;
+  if(isMob){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-panel').classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    activeTab='panel';
+  } else {
+    document.getElementById('view-panel').classList.add('open');
+    document.getElementById('view-mapa').classList.add('panel-open');
+  }
+}
+
+function renderHistorial(id){
+  const h=HIST[id]||[];
+  const el=document.getElementById('p-historial');
+  if(!h.length){el.innerHTML='<div class="historial-empty">Sin cambios registrados</div>';return;}
+  el.innerHTML=h.map(e=>`
+    <div class="historial-item">
+      <span class="historial-time">${e.ts}</span>
+      ${e.msg}
+    </div>`).join('');
+}
+
+function closePanel(){
+  selId=null;
+  renderLista(document.getElementById('search-input').value);
+  updateAllMarkers();
+  const isMob=window.innerWidth<768;
+  if(isMob) switchTab('lista');
+  else{
+    document.getElementById('view-panel').classList.remove('open');
+    document.getElementById('view-mapa').classList.remove('panel-open');
+    if(leafMap) setTimeout(()=>leafMap.invalidateSize(),300);
+  }
+}
+
+function selectClient(id){
+  selId=id;
+  openPanel(id);
+  updateAllMarkers();
+  renderLista(document.getElementById('search-input').value);
+  if(leafMap){
+    const c=CL.find(x=>x.id===id);
+    leafMap.setView([c.lat,c.lng],16,{animate:true});
+  }
+}
+
+// ── FORM ─────────────────────────────────────────────────
+function setPill(field,val,cls){
+  if(!selId)return;
+  const prev=st(selId)[field];
+  st(selId)[field]=val;
+  const labels={estado:{pendiente:'Pendiente',visitado:'Visitado','no-atiende':'No atendió'},contacto:{ninguno:'Sin contacto',dueno:'Contacto: Dueño',encargado:'Contacto: Encargado'}};
+  if(prev!==val) addHist(selId,labels[field][val]);
+  if(field==='estado'){
+    ['pend','visit','noat'].forEach(k=>document.getElementById(`pp-${k}`).className='pill');
+    const m={pendiente:'pend',visitado:'visit','no-atiende':'noat'};
+    document.getElementById(`pp-${m[val]}`).className=`pill s${cls}`;
+  }else{
+    ['noc','due','enc'].forEach(k=>document.getElementById(`pp-${k}`).className='pill');
+    const m={ninguno:'noc',dueno:'due',encargado:'enc'};
+    document.getElementById(`pp-${m[val]}`).className=`pill s${cls}`;
+  }
+  updateStats();updateMarkerIcon(selId,true);renderHistorial(selId);
+}
+
+function toggleBrand(m){
+  if(!selId)return;
+  const s=st(selId),idx=s.marcas.indexOf(m);
+  const names={cagnoli:'Cagnoli',donatilio:'Don Atilio',vidal:'L.Vidal',lasdinas:'Las Dinas'};
+  if(idx>=0){s.marcas.splice(idx,1);addHist(selId,`Marca quitada: ${names[m]}`);}
+  else{s.marcas.push(m);addHist(selId,`Trabaja con: ${names[m]}`);}
+  const on=s.marcas.includes(m);
+  document.getElementById(`bb-${m}`).className='brand-btn'+(on?' on':'');
+  document.getElementById(`bchk-${m}`).textContent=on?'✓':'';
+  renderHistorial(selId);
+}
+
+function setSize(sz){
+  if(!selId)return;
+  const prev=st(selId).tamano;
+  st(selId).tamano=sz;
+  if(prev!==sz) addHist(selId,`Tamaño: ${sz}`);
+  ['ch','me','gr'].forEach(k=>document.getElementById(`sz-${k}`).className='sz-btn');
+  const m={chico:'ch',mediano:'me',grande:'gr'};
+  document.getElementById(`sz-${m[sz]}`).className='sz-btn on';
+  renderHistorial(selId);
+}
+
+function saveVisita(){
+  if(!selId)return;
+  const notas=document.getElementById('p-notes').value;
+  const prev=st(selId).notas;
+  st(selId).notas=notas;
+  if(notas&&notas!==prev) addHist(selId,'Observaciones actualizadas');
+  addHist(selId,'✓ Visita guardada');
+  showToast('✓ Visita guardada');
+  updateStats();updateMarkerIcon(selId,true);renderHistorial(selId);
+  renderLista(document.getElementById('search-input').value);
+  saveToStorage();
+  // ¿Último cliente del día? Ofrecer encuesta
+  checkEncuestaTrigger();
+}
+
+function checkEncuestaTrigger(){
+  const pendientes=CL.filter(c=>{
+    const s=st(c.id);
+    return s.estado==='pendiente' && !s.noVisitar;
+  });
+  if(pendientes.length===0){
+    setTimeout(()=>{
+      if(confirm('🎉 ¡Terminaste con todos los clientes del día!\n¿Querés completar el feedback de jornada para Gastón?')){
+        openEncuesta();
+      }
+    },800);
+  }
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function updateStats(){
+  document.getElementById('st-v').textContent=CL.filter(c=>st(c.id).estado==='visitado').length;
+  document.getElementById('st-c').textContent=CL.filter(c=>['dueno','encargado'].includes(st(c.id).contacto)).length;
+}
+
+// ── EXPORTAR ──────────────────────────────────────────────
+function refreshExport(){
+  const visitados=CL.filter(c=>st(c.id).estado==='visitado').length;
+  const contactos=CL.filter(c=>['dueno','encargado'].includes(st(c.id).contacto)).length;
+  document.getElementById('ex-total').textContent=CL.length;
+  document.getElementById('ex-visit').textContent=visitados;
+  document.getElementById('ex-cont').textContent=contactos;
+  const hoy=new Date().toLocaleDateString('es-AR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('export-fecha').textContent=hoy;
+  const hg=document.getElementById('historial-global');
+  if(!HIST_GLOBAL.length){hg.innerHTML='<div class="historial-empty">Sin actividad aún</div>';return;}
+  hg.innerHTML=HIST_GLOBAL.map(e=>`<div class="historial-item"><span class="historial-time">${e.ts}</span>${e.msg}</div>`).join('');
+}
+
+function exportCSV(){
+  const rows=[['Nombre','Tipo','Cuadrante','Estado','Contacto','Marcas','Tamaño','Observaciones','Sucursales','Nivel','No Visitar','Difícil Acceso']];
+  CL.forEach(c=>{
+    const s=st(c.id);
+    rows.push([
+      c.n, c.t, CQ[c.q].f, s.estado, s.contacto||'—',
+      s.marcas.join(';')||'—', s.tamano||'—',
+      (s.notas||'').replace(/"/g,"'"), c.s, c.v,
+      s.noVisitar?'Sí':'No', s.dificulAcceso?'Sí':'No'
+    ]);
+  });
+  const csv=rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const fecha=new Date().toISOString().slice(0,10);
+  a.download=`charni_caba_${fecha}.csv`;
+  a.click();
+  showToast('✓ CSV descargado');
+}
+
+function exportWhatsApp(){
+  const hoy=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const visitados=CL.filter(c=>st(c.id).estado==='visitado');
+  const noAtiende=CL.filter(c=>st(c.id).estado==='no-atiende');
+  const contactos=CL.filter(c=>['dueno','encargado'].includes(st(c.id).contacto));
+  const noVisitar=CL.filter(c=>st(c.id).noVisitar);
+  const difAcceso=CL.filter(c=>st(c.id).dificulAcceso&&!st(c.id).noVisitar);
+  let msg=`📊 *Resumen jornada Charni CABA*\n📅 ${hoy}\n\n`;
+  msg+=`✅ Visitados: ${visitados.length}/${CL.length}\n`;
+  msg+=`👤 Contactos obtenidos: ${contactos.length}\n`;
+  msg+=`✗ No atendieron: ${noAtiende.length}\n`;
+  if(noVisitar.length) msg+=`🚫 No volver: ${noVisitar.length}\n`;
+  if(difAcceso.length) msg+=`⚠ Difícil acceso: ${difAcceso.length}\n`;
+  msg+='\n';
+  if(visitados.length){
+    msg+=`*Detalle visitados:*\n`;
+    visitados.forEach(c=>{
+      const s=st(c.id);
+      msg+=`• ${c.n}`;
+      if(s.contacto==='dueno') msg+=` (Dueño ✓)`;
+      else if(s.contacto==='encargado') msg+=` (Encargado ✓)`;
+      if(c.tel) msg+=`\n  📱 https://wa.me/${c.tel}`;
+      if(s.marcas.length) msg+=`\n  🏷 Trabaja: ${s.marcas.join(', ')}`;
+      if(s.tamano) msg+=` | ${s.tamano}`;
+      if(s.notas) msg+=`\n  💬 ${s.notas}`;
+      msg+='\n';
+    });
+  }
+  if(noAtiende.length){
+    msg+=`\n*No atendieron:*\n`;
+    noAtiende.forEach(c=>{
+      msg+=`• ${c.n}`;
+      if(c.tel) msg+=`\n  📱 https://wa.me/${c.tel}`;
+      msg+='\n';
+    });
+  }
+  msg+=`\n_Enviado desde Charni App CABA v5_`;
+  // Directo a Gastón
+  window.open(`https://wa.me/5492494544945?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+// ── GPS ───────────────────────────────────────────────────
+function toggleGPS(){
+  if(!navigator.geolocation){showToast('GPS no disponible');return;}
+  const btn=document.getElementById('gps-btn');
+  if(gpsActive){
+    gpsActive=false;
+    if(watchId) navigator.geolocation.clearWatch(watchId);
+    if(gpsMarker) leafMap.removeLayer(gpsMarker);
+    gpsMarker=null;gpsCoords=null;
+    btn.className='gps-btn';btn.textContent='📍';
+    showToast('GPS desactivado');
+  } else {
+    btn.className='gps-btn searching';btn.textContent='🔄';
+    watchId=navigator.geolocation.watchPosition(pos=>{
+      gpsCoords={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      gpsActive=true;btn.className='gps-btn active';btn.textContent='🔵';
+      if(gpsMarker) gpsMarker.setLatLng([gpsCoords.lat,gpsCoords.lng]);
+      else{
+        const gpsIcon=L.divIcon({
+          html:`<div style="width:16px;height:16px;background:#1D6AF5;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 4px rgba(29,106,245,0.25)"></div>`,
+          className:'',iconSize:[16,16],iconAnchor:[8,8]
+        });
+        gpsMarker=L.marker([gpsCoords.lat,gpsCoords.lng],{icon:gpsIcon,zIndexOffset:1000})
+          .addTo(leafMap)
+          .bindTooltip('Tu ubicación',{permanent:false,direction:'top'});
+        leafMap.setView([gpsCoords.lat,gpsCoords.lng],15,{animate:true});
+      }
+    },()=>{
+      btn.className='gps-btn';btn.textContent='📍';
+      showToast('No se pudo obtener ubicación');
+    },{enableHighAccuracy:true,maximumAge:5000});
+  }
+}
+
+// ── TABS ─────────────────────────────────────────────────
+function switchTab(tab){
+  activeTab=tab;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const view=document.getElementById(`view-${tab}`);
+  if(view) view.classList.add('active');
+  const btn=document.getElementById(`tab-${tab}`);
+  if(btn) btn.classList.add('active');
+  if(tab==='mapa'&&leafMap) setTimeout(()=>leafMap.invalidateSize(),100);
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── TUTORIAL ─────────────────────────────────────────────
+const TUTORIAL_STEPS=[
+  {emoji:'👋',title:'Bienvenida a Charni CABA',text:'Esta app te ayuda a organizar tus visitas por zona y registrar todo desde el campo. Te guiamos en 4 pasos.'},
+  {emoji:'🗺',title:'El Mapa',text:'Ves todos los clientes como pins de colores por cuadrante. Tocás un pin → aparece info del cliente + botones para ir o registrar visita.'},
+  {emoji:'✎',title:'Registrar una visita',text:'Tocá "Registrar visita" en el popup del mapa o en la lista de Clientes. Guardá el estado, contacto, marcas y observaciones en 3 taps.'},
+  {emoji:'📤',title:'Exportar y nueva jornada',text:'En la pestaña Exportar mandás el resumen directo a Gastón por WhatsApp y descargás el CSV. Para empezar el día siguiente usá "Nueva jornada inteligente".'},
+  {emoji:'📍',title:'Ruta desde cualquier punto',text:'Tocá un cliente en el mapa o lista → "Empezar ruta desde aquí" y Google Maps te lleva en orden óptimo desde ese punto. ¡Listo!'},
+];
+let tutStep=0;
+
+function openTutorial(){
+  tutStep=0;
+  renderTutStep();
+  document.getElementById('tutorial-overlay').classList.remove('hidden');
+}
+
+function renderTutStep(){
+  const step=TUTORIAL_STEPS[tutStep];
+  document.getElementById('tutorial-emoji').textContent=step.emoji;
+  document.getElementById('tutorial-title').textContent=step.title;
+  document.getElementById('tutorial-text').textContent=step.text;
+  const dots=document.getElementById('tutorial-dots');
+  dots.innerHTML=TUTORIAL_STEPS.map((_,i)=>`<div class="tutorial-dot${i===tutStep?' active':''}"></div>`).join('');
+  const nextBtn=document.getElementById('tutorial-next-btn');
+  nextBtn.textContent=tutStep===TUTORIAL_STEPS.length-1?'¡Empezar!':'Siguiente →';
+}
+
+function tutorialNext(){
+  if(tutStep<TUTORIAL_STEPS.length-1){
+    tutStep++;renderTutStep();
+  } else {
+    closeTutorial();
+  }
+}
+
+function closeTutorial(){
+  document.getElementById('tutorial-overlay').classList.add('hidden');
+  localStorage.setItem('charni_tutorial_visto','1');
+}
+
+// ── ENCUESTA ─────────────────────────────────────────────
+const encData={facilidad:0,dificil:[],cant:'',sugerencia:''};
+
+function openEncuesta(){
+  const hoy=new Date().toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long'});
+  document.getElementById('encuesta-fecha-sub').textContent=hoy;
+  // Reset visual
+  document.querySelectorAll('.star-btn').forEach(s=>s.classList.remove('lit'));
+  document.querySelectorAll('.enc-opt').forEach(o=>o.classList.remove('on'));
+  document.getElementById('enc-sugerencia').value='';
+  encData.facilidad=0;encData.dificil=[];encData.cant='';encData.sugerencia='';
+  document.getElementById('encuesta-overlay').classList.remove('hidden');
+}
+
+function closeEncuesta(){
+  document.getElementById('encuesta-overlay').classList.add('hidden');
+}
+
+function setStars(field,n){
+  encData[field]=n;
+  const row=document.getElementById(`stars-${field}`);
+  row.querySelectorAll('.star-btn').forEach((s,i)=>{
+    s.classList.toggle('lit',i<n);
+  });
+}
+
+function toggleEncOpt(field,el,val,mode='multi'){
+  if(mode==='single'){
+    document.querySelectorAll(`#enc-${field} .enc-opt`).forEach(o=>o.classList.remove('on'));
+    encData[field]=val;
+    el.classList.add('on');
+  } else {
+    const idx=encData[field].indexOf(val);
+    if(idx>=0){encData[field].splice(idx,1);el.classList.remove('on');}
+    else{encData[field].push(val);el.classList.add('on');}
+  }
+}
+
+function submitEncuesta(){
+  encData.sugerencia=document.getElementById('enc-sugerencia').value;
+  const hoy=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const visitados=CL.filter(c=>st(c.id).estado==='visitado').length;
+  const contactos=CL.filter(c=>['dueno','encargado'].includes(st(c.id).contacto)).length;
+  let msg=`📝 *Feedback de jornada Charni CABA*\n📅 ${hoy}\n\n`;
+  msg+=`*Resumen:* ${visitados} visitados · ${contactos} contactos\n\n`;
+  msg+=`⭐ Facilidad de uso: ${'★'.repeat(encData.facilidad)||'—'}\n`;
+  if(encData.dificil.length) msg+=`🤔 Más difícil: ${encData.dificil.join(', ')}\n`;
+  if(encData.cant) msg+=`🏪 Locales visitados hoy: ${encData.cant}\n`;
+  if(encData.sugerencia) msg+=`💬 Sugerencia: ${encData.sugerencia}\n`;
+  msg+=`\n_Desde Charni App CABA v5_`;
+  closeEncuesta();
+  window.open(`https://wa.me/5492494544945?text=${encodeURIComponent(msg)}`,'_blank');
+  showToast('✓ Feedback enviado a Gastón');
+}
+
+// ── INIT ─────────────────────────────────────────────────
+initMap();
+renderLista();
+updateStats();
+if(localStorage.getItem(STORAGE_KEY)){
+  setTimeout(()=>{updateAllMarkers();updateStats();},800);
+}
+// Tutorial automático primera vez
+if(!localStorage.getItem('charni_tutorial_visto')){
+  setTimeout(()=>openTutorial(),1200);
+}
+</script>
+</body>
+</html>
